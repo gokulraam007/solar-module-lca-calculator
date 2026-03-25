@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solar Module LCA Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════
+   TOKENS
+═══════════════════════════════════════════════════ */
+:root {
+  --bg:        #07070F;
+  --s1:        #0D0D1C;
+  --s2:        #141428;
+  --s3:        #1B1B35;
+  --s4:        #222240;
+  --solar:     #F5E642;
+  --solar-dim: rgba(245,230,66,0.12);
+  --solar-glow:rgba(245,230,66,0.25);
+  --green:     #2EE8A0;
+  --green-dim: rgba(46,232,160,0.12);
+  --red:       #FF5757;
+  --red-dim:   rgba(255,87,87,0.12);
+  --blue:      #5599FF;
+  --blue-dim:  rgba(85,153,255,0.12);
+  --purple:    #B46EFF;
+  --purple-dim:rgba(180,110,255,0.12);
+  --amber:     #FFAA33;
+  --t1: #EEEEF5;
+  --t2: #8080A0;
+  --t3: #404060;
+  --t4: #252545;
+  --border:    rgba(245,230,66,0.1);
+  --border-dim:rgba(255,255,255,0.06);
+  --mono: 'DM Mono', monospace;
+  --head: 'Oxanium', sans-serif;
+  --body: 'DM Sans', sans-serif;
+  --radius: 12px;
+}
+
+/* ═══════════════════════════════════════════════════
+   RESET & BASE
+═══════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--body);background:var(--bg);color:var(--t1);
+  min-height:100vh;font-size:13.5px;line-height:1.55;
+  background-image:
+    radial-gradient(ellipse 80% 40% at 50% -10%, rgba(245,230,66,0.07) 0%,transparent 60%),
+    linear-gradient(180deg,rgba(245,230,66,0.03) 0%,transparent 300px);
+}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--s4);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--solar)}
+
+/* ═══════════════════════════════════════════════════
+   HEADER
+═══════════════════════════════════════════════════ */
+.hdr{
+  position:sticky;top:0;z-index:200;
+  background:rgba(7,7,15,0.85);
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(24px);
+  padding:18px 28px 14px;
+}
+.hdr-top{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.hdr-logo{
+  width:42px;height:42px;border-radius:10px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--solar),#FF9900);
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;box-shadow:0 0 24px var(--solar-glow);
+  font-family:var(--head);font-weight:800;color:#000;
+}
+.hdr-title-block h1{
+  font-family:var(--head);font-size:17px;font-weight:700;
+  letter-spacing:0.5px;
+  background:linear-gradient(90deg,var(--solar),#FFD080);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.hdr-title-block p{font-size:11px;color:var(--t3);letter-spacing:1px;text-transform:uppercase;margin-top:2px}
+
+/* MODULE SELECTOR */
+.mod-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.mod-card{
+  background:var(--s1);border:1.5px solid var(--border-dim);
+  border-radius:10px;padding:11px 13px;cursor:pointer;
+  transition:all .2s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;
+}
+.mod-card::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,var(--solar),transparent);
+  opacity:0;transition:opacity .2s;
+}
+.mod-card:hover{border-color:rgba(245,230,66,0.3);transform:translateY(-1px)}
+.mod-card.sel{
+  border-color:var(--solar);
+  background:var(--solar-dim);
+  box-shadow:0 0 0 1px var(--solar),0 4px 20px var(--solar-glow);
+}
+.mc-inner{position:relative;z-index:1}
+.mc-wp{font-family:var(--head);font-size:21px;font-weight:800;color:var(--t1);letter-spacing:-0.5px;line-height:1}
+.mc-wp span{font-size:11px;font-weight:400;color:var(--t3)}
+.mc-name{font-size:11px;color:var(--t2);margin-top:3px;font-weight:500}
+.mc-badges{display:flex;flex-wrap:wrap;gap:3px;margin-top:8px}
+.tag{
+  font-size:9px;font-weight:700;padding:2px 7px;
+  border-radius:20px;letter-spacing:.5px;text-transform:uppercase;font-family:var(--head);
+}
+.tag-perc{background:rgba(255,170,51,.15);color:#FFAA33;border:1px solid rgba(255,170,51,.25)}
+.tag-topcon{background:var(--solar-dim);color:var(--solar);border:1px solid var(--border)}
+.tag-dcr{background:var(--green-dim);color:var(--green);border:1px solid rgba(46,232,160,.25)}
+.tag-ndcr{background:var(--blue-dim);color:var(--blue);border:1px solid rgba(85,153,255,.25)}
+.tag-ncdr{background:rgba(180,110,255,.15);color:#CF9EFF;border:1px solid rgba(180,110,255,.25)}
+.tag-ntype{background:rgba(255,87,87,.12);color:#FF8080;border:1px solid rgba(255,87,87,.2)}
+
+/* ═══════════════════════════════════════════════════
+   MODULE INFO STRIP
+═══════════════════════════════════════════════════ */
+.strip{
+  display:flex;gap:0;background:var(--s1);
+  border:1px solid var(--border);border-radius:var(--radius);
+  overflow:hidden;margin:16px 0;
+}
+.strip-item{
+  flex:1;padding:12px 14px;text-align:center;
+  border-right:1px solid var(--border-dim);
+  transition:background .2s;
+}
+.strip-item:last-child{border-right:none}
+.strip-item:hover{background:var(--s2)}
+.si-val{font-family:var(--head);font-size:17px;font-weight:700;color:var(--solar);line-height:1}
+.si-label{font-size:9.5px;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-top:4px;font-weight:600}
+
+/* ═══════════════════════════════════════════════════
+   TAB NAV
+═══════════════════════════════════════════════════ */
+.tab-nav{
+  display:flex;gap:4px;padding:0 28px;
+  background:var(--s1);border-bottom:1px solid var(--border-dim);
+}
+.tab-btn{
+  padding:12px 20px;font-family:var(--head);font-size:12px;font-weight:600;
+  letter-spacing:.5px;cursor:pointer;border:none;background:transparent;
+  color:var(--t3);transition:all .2s;
+  border-bottom:2px solid transparent;margin-bottom:-1px;
+  display:flex;align-items:center;gap:7px;
+}
+.tab-btn:hover{color:var(--t2)}
+.tab-btn.on{color:var(--solar);border-bottom-color:var(--solar)}
+
+/* ═══════════════════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════════════════ */
+.main{padding:20px 28px;max-width:1440px;margin:0 auto}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+
+/* ═══════════════════════════════════════════════════
+   CARDS
+═══════════════════════════════════════════════════ */
+.card{
+  background:var(--s1);border:1px solid var(--border-dim);
+  border-radius:var(--radius);padding:18px;margin-bottom:14px;
+}
+.card-no-mb{margin-bottom:0}
+.ch{
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:14px;padding-bottom:12px;
+  border-bottom:1px solid var(--border-dim);
+}
+.ch-icon{font-size:15px}
+.ch-title{
+  font-family:var(--head);font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:1.5px;color:var(--t2);
+}
+.section-label{
+  font-family:var(--head);font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:2px;color:var(--solar);
+  padding:14px 0 8px;display:flex;align-items:center;gap:10px;
+}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ═══════════════════════════════════════════════════
+   PARAM SLIDERS
+═══════════════════════════════════════════════════ */
+.pg{margin-bottom:16px}
+.pg:last-child{margin-bottom:0}
+.pg-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+.pg-name{font-size:12.5px;font-weight:500;color:var(--t1)}
+.pg-val{
+  font-family:var(--mono);font-size:12.5px;font-weight:500;
+  color:var(--solar);background:var(--solar-dim);
+  padding:2px 9px;border-radius:6px;min-width:100px;text-align:right;
+  border:1px solid var(--border);transition:color .15s;
+}
+input[type=range]{
+  width:100%;height:3px;-webkit-appearance:none;appearance:none;
+  background:var(--s3);border-radius:2px;outline:none;cursor:pointer;
+  margin:5px 0 6px;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+  background:linear-gradient(135deg,var(--solar),#FF9900);cursor:pointer;
+  box-shadow:0 0 10px var(--solar-glow);transition:transform .15s;border:none;
+}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.25)}
+input[type=range]::-moz-range-thumb{
+  width:15px;height:15px;border-radius:50%;
+  background:linear-gradient(135deg,var(--solar),#FF9900);
+  cursor:pointer;border:none;
+}
+.pg-note{
+  font-size:10.5px;color:var(--t3);line-height:1.5;
+  padding:5px 9px;background:var(--s2);border-radius:6px;
+  border-left:2px solid var(--s4);
+}
+.pg-note em{color:var(--solar);font-style:normal;font-weight:500}
+.pg-note strong{color:var(--t2);font-weight:600}
+
+/* ═══════════════════════════════════════════════════
+   WATERFALL CHART
+═══════════════════════════════════════════════════ */
+.wf-wrap{padding:4px 0}
+.wf-cat-label{
+  font-family:var(--head);font-size:9.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:1.5px;
+  margin:14px 0 5px 148px;padding-bottom:4px;
+}
+.wf-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.wf-lbl{width:140px;flex-shrink:0;font-size:11px;color:var(--t2);text-align:right}
+.wf-track{flex:1;height:20px;background:var(--s2);border-radius:4px;overflow:hidden;position:relative}
+.wf-fill{
+  height:100%;border-radius:4px;display:flex;align-items:center;
+  padding-left:8px;font-size:9.5px;font-weight:700;color:rgba(0,0,0,0.7);
+  transition:width .4s cubic-bezier(.4,0,.2,1);white-space:nowrap;overflow:hidden;
+  font-family:var(--head);letter-spacing:.3px;
+}
+.wf-kwhval{width:88px;flex-shrink:0;font-family:var(--mono);font-size:11px;color:var(--t1);text-align:right}
+.wf-pctval{width:44px;flex-shrink:0;font-size:10.5px;color:var(--t3);text-align:right}
+
+/* ═══════════════════════════════════════════════════
+   BREAKDOWN TABLE
+═══════════════════════════════════════════════════ */
+.dtable{width:100%;border-collapse:collapse;font-size:12px}
+.dtable th{
+  background:var(--s2);color:var(--t3);
+  font-family:var(--head);font-size:9.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.8px;
+  padding:9px 12px;text-align:left;
+  border-bottom:1px solid var(--border-dim);
+}
+.dtable td{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.03);color:var(--t2)}
+.dtable tr:hover td{background:rgba(245,230,66,0.03)}
+.dtable td.r{text-align:right;font-family:var(--mono);font-size:11.5px;color:var(--t1)}
+.dtable tr.total-row td{background:rgba(245,230,66,0.06);font-weight:700;color:var(--solar)}
+
+/* ═══════════════════════════════════════════════════
+   KPI CARDS
+═══════════════════════════════════════════════════ */
+.kpi{
+  background:var(--s1);border:1px solid var(--border-dim);border-radius:var(--radius);
+  padding:20px 16px;text-align:center;position:relative;overflow:hidden;
+  transition:transform .2s;
+}
+.kpi:hover{transform:translateY(-2px)}
+.kpi::before{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:3px;
+}
+.kpi-ept::before{background:linear-gradient(90deg,var(--green),#00FFB0)}
+.kpi-eyr::before{background:linear-gradient(90deg,var(--purple),#CF9EFF)}
+.kpi-co2::before{background:linear-gradient(90deg,var(--solar),#FFCC00)}
+.kpi-gef::before{background:linear-gradient(90deg,var(--blue),#88BBFF)}
+.kpi-num{font-family:var(--head);font-size:38px;font-weight:800;letter-spacing:-2px;line-height:1;margin-bottom:6px}
+.kpi-ept .kpi-num{color:var(--green)}
+.kpi-eyr .kpi-num{color:var(--purple)}
+.kpi-co2 .kpi-num{color:var(--solar)}
+.kpi-gef .kpi-num{color:var(--blue)}
+.kpi-lbl{font-size:11.5px;font-weight:600;color:var(--t2);font-family:var(--head);letter-spacing:.3px}
+.kpi-unit{font-size:10px;color:var(--t3);margin-top:3px}
+
+/* ═══════════════════════════════════════════════════
+   FORMULA DISPLAY
+═══════════════════════════════════════════════════ */
+.f-section-title{
+  font-family:var(--head);font-size:9.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:1.5px;color:var(--t3);
+  margin-bottom:8px;margin-top:14px;
+}
+.f-section-title:first-child{margin-top:0}
+.f-row{
+  display:grid;grid-template-columns:90px 12px 1fr auto;
+  align-items:baseline;gap:8px;
+  padding:9px 12px;background:var(--s2);
+  border-radius:8px;margin-bottom:5px;
+  border-left:3px solid;
+}
+.f-lhs{font-family:var(--mono);font-size:12px;font-weight:500;white-space:nowrap}
+.f-eq{font-size:12px;color:var(--t3)}
+.f-rhs{font-family:var(--mono);font-size:11px;color:var(--t2);word-break:break-word}
+.f-result{font-family:var(--mono);font-size:13px;font-weight:600;white-space:nowrap}
+.f-note{
+  font-size:10px;color:var(--t3);padding:6px 10px;
+  background:var(--s2);border-radius:6px;margin-top:8px;
+  border:1px solid var(--border-dim);
+  display:flex;align-items:center;gap:6px;
+}
+
+/* ═══════════════════════════════════════════════════
+   BENCHMARK TABLE
+═══════════════════════════════════════════════════ */
+.btable{width:100%;border-collapse:collapse;font-size:11.5px}
+.btable th{
+  background:var(--s2);color:var(--t3);
+  font-family:var(--head);font-size:9px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.8px;
+  padding:8px 10px;text-align:left;
+  border-bottom:1px solid var(--border-dim);
+}
+.btable td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.03);color:var(--t2)}
+.btable td.r{text-align:right;font-family:var(--mono);font-size:11px;color:var(--t1)}
+.btable tr.hl td{background:var(--solar-dim);color:var(--t1);font-weight:600}
+.btable tr.hl td.r{color:var(--solar)}
+.btable tr:hover td{background:rgba(255,255,255,0.02)}
+.ept-dot{
+  display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle;
+}
+.bench-note{font-size:9.5px;color:var(--t3);padding-top:8px;font-style:italic}
+
+/* ═══════════════════════════════════════════════════
+   EPT ANNOTATION BOX
+═══════════════════════════════════════════════════ */
+.ept-box{
+  display:flex;align-items:flex-start;gap:12px;
+  background:rgba(46,232,160,0.08);border:1px solid rgba(46,232,160,0.2);
+  border-radius:8px;padding:12px 16px;margin-top:12px;
+}
+.ept-box-icon{font-size:20px;flex-shrink:0;margin-top:1px}
+.ept-box-text{font-size:12px;color:var(--t1);line-height:1.6}
+.ept-box-text strong{color:var(--green)}
+.ept-box-text em{color:var(--solar);font-style:normal;font-weight:600}
+
+/* ═══════════════════════════════════════════════════
+   PHASE LEGEND
+═══════════════════════════════════════════════════ */
+.phase-legend{margin-top:12px}
+.pl-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.pl-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.pl-name{flex:1;font-size:11.5px;color:var(--t2)}
+.pl-kwh{font-family:var(--mono);font-size:11px;color:var(--t1);white-space:nowrap}
+.pl-pct{font-size:10.5px;color:var(--t3);width:40px;text-align:right;white-space:nowrap}
+.pl-total{
+  display:flex;align-items:center;gap:8px;
+  margin-top:8px;padding-top:8px;border-top:1px solid var(--border-dim);
+}
+
+/* ═══════════════════════════════════════════════════
+   CANVAS
+═══════════════════════════════════════════════════ */
+.chart-wrap{position:relative}
+canvas{max-width:100%}
+
+/* ═══════════════════════════════════════════════════
+   SELECT (fallback)
+═══════════════════════════════════════════════════ */
+select{
+  background:var(--s2);border:1px solid var(--border-dim);color:var(--t1);
+  border-radius:8px;padding:7px 12px;font-family:var(--body);
+  font-size:12.5px;outline:none;cursor:pointer;width:100%;
+}
+select:focus{border-color:var(--solar)}
+
+/* ═══════════════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════════════ */
+@media(max-width:960px){
+  .mod-grid{grid-template-columns:1fr 1fr}
+  .g4{grid-template-columns:1fr 1fr}
+  .g3,.g2{grid-template-columns:1fr}
+  .hdr,.main{padding-left:16px;padding-right:16px}
+  .tab-nav{padding:0 16px;overflow-x:auto}
+  .strip{flex-wrap:wrap}
+  .strip-item{min-width:33%}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     HEADER
+═══════════════════════════════════════════════════ -->
+<header class="hdr">
+  <div class="hdr-top">
+    <div class="hdr-logo">☀</div>
+    <div class="hdr-title-block">
+      <h1>Solar Module — Life Cycle Analysis Calculator</h1>
+      <p>Embodied Energy · E<sub>input</sub> · Energy Payback Time · Energy Yield Ratio · CO₂ Avoidance · India Context</p>
+    </div>
+  </div>
+  <div class="mod-grid" id="modSelector"><!-- JS --></div>
+</header>
+
+<!-- ═══════════════════════════════════════════════
+     TAB NAV
+═══════════════════════════════════════════════════ -->
+<nav class="tab-nav">
+  <button class="tab-btn on" onclick="switchTab(0)">⚙ Inputs & Parameters</button>
+  <button class="tab-btn"    onclick="switchTab(1)">⬛ Energy Breakdown</button>
+  <button class="tab-btn"    onclick="switchTab(2)">◈ EPT & EYR Analysis</button>
+</nav>
+
+<!-- ═══════════════════════════════════════════════
+     MAIN
+═══════════════════════════════════════════════════ -->
+<div class="main">
+
+  <!-- MODULE INFO STRIP (always visible) -->
+  <div class="strip" id="modStrip"><!-- JS --></div>
+
+  <!-- ─── TAB 0: INPUTS ──────────────────────── -->
+  <div id="tab-0">
+    <div class="section-label">🏭 Manufacturing Embodied Energy</div>
+    <div class="g3">
+      <div class="card card-no-mb">
+        <div class="ch"><span class="ch-icon">⬡</span><span class="ch-title">Upstream Silicon Chain</span></div>
+        <div id="grp-upstream"></div>
+      </div>
+      <div class="card card-no-mb">
+        <div class="ch"><span class="ch-icon">⚡</span><span class="ch-title">Cell & Module Processing</span></div>
+        <div id="grp-cell"></div>
+      </div>
+      <div class="card card-no-mb">
+        <div class="ch"><span class="ch-icon">☀</span><span class="ch-title">Site & Performance Parameters</span></div>
+        <div id="grp-site"></div>
+      </div>
+    </div>
+    <div class="section-label" style="margin-top:18px">⬡ Balance of System · O&M · Decommissioning</div>
+    <div class="g2">
+      <div class="card card-no-mb">
+        <div class="ch"><span class="ch-icon">🏗</span><span class="ch-title">Transport & Installation BOS</span></div>
+        <div id="grp-bos"></div>
+      </div>
+      <div class="card card-no-mb">
+        <div class="ch"><span class="ch-icon">🔄</span><span class="ch-title">O&M · Lifecycle · Decommissioning</span></div>
+        <div id="grp-oam"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── TAB 1: BREAKDOWN ─────────────────────── -->
+  <div id="tab-1" style="display:none">
+    <div class="g2">
+      <div class="card card-no-mb">
+        <div class="ch"><span class="ch-icon">⬛</span><span class="ch-title">E<sub>input</sub> Waterfall Chart (kWh/kWp)</span></div>
+        <div class="wf-wrap" id="wfChart"></div>
+      </div>
+      <div class="card card-no-mb">
+        <div class="ch"><span class="ch-icon">◉</span><span class="ch-title">Phase Contribution Breakdown</span></div>
+        <canvas id="donutChart" height="200"></canvas>
+        <div class="phase-legend" id="phaseLegend"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <div class="ch"><span class="ch-icon">▤</span><span class="ch-title">Detailed Line-Item Table</span></div>
+      <div style="overflow-x:auto"><table class="dtable" id="dtable"></table></div>
+    </div>
+  </div>
+
+  <!-- ─── TAB 2: EPT & EYR ─────────────────────── -->
+  <div id="tab-2" style="display:none">
+    <div class="g4" id="kpiGrid" style="margin-bottom:16px"></div>
+    <div class="g2" style="margin-bottom:14px">
+      <div class="card card-no-mb">
+        <div class="ch"><span class="ch-icon">∫</span><span class="ch-title">LCA Formulae & Calculated Values</span></div>
+        <div id="formulaBox"></div>
+      </div>
+      <div class="card card-no-mb">
+        <div class="ch"><span class="ch-icon">⊞</span><span class="ch-title">Benchmark Comparison — Global Context</span></div>
+        <div style="overflow-x:auto"><table class="btable" id="benchTable"></table></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><span class="ch-icon">⟳</span><span class="ch-title">Cumulative Energy Balance — Lifetime Performance & EPT Crossover</span></div>
+      <div class="chart-wrap"><canvas id="cumulChart" height="210"></canvas></div>
+      <div class="ept-box" id="eptBox"></div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- SCRIPTS -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<script>
+/* ════════════════════════════════════════════════════
+   MODULE PRESETS
+════════════════════════════════════════════════════ */
+const MODS = {
+  DCR_PERC_550: {
+    name:'DCR PERC 550W', wp:550, tech:'PERC', cert:'DCR',
+    cells:'144 × M10 (182mm)', type:'Mono-PERC · Glass-Backsheet · P-type',
+    eff:21.2, life:25, LID:2.0, degrad:0.55,
+    // Manufacturing kWh/kWp
+    e_poly:210, e_ingot:72, e_wafer:42, e_cell:58, e_mod:62, e_mat:72,
+    // Transport
+    e_trans:8,
+    // BOS
+    e_struct:50, e_elec:44, e_civil:26,
+    // O&M + Decom
+    e_clean:62, e_scada:30, e_inv:26, e_decom:18,
+    // Site
+    psh:5.0, pr:78, ef:0.72, pef:2.7,
+    badges:[['tag-perc','PERC'],['tag-dcr','DCR']],
+    color:'#FFAA33'
+  },
+  NDCR_TOPCon_625: {
+    name:'NDCR TOPCon 625W', wp:625, tech:'TOPCon', cert:'NDCR',
+    cells:'132 × G12R (210mm)', type:'N-type TOPCon · Bifacial · Glass-Glass',
+    eff:22.5, life:30, LID:1.0, degrad:0.40,
+    e_poly:168, e_ingot:78, e_wafer:48, e_cell:90, e_mod:68, e_mat:78,
+    e_trans:18, e_struct:52, e_elec:46, e_civil:28,
+    e_clean:72, e_scada:36, e_inv:32, e_decom:26,
+    psh:5.0, pr:81, ef:0.72, pef:2.7,
+    badges:[['tag-topcon','TOPCon'],['tag-ndcr','NDCR'],['tag-ntype','N-type']],
+    color:'#F5E642'
+  },
+  NCDR_TOPCon_595: {
+    name:'NCDR TOPCon 595W', wp:595, tech:'TOPCon', cert:'NCDR',
+    cells:'120 × M10R (182mm)', type:'N-type TOPCon · Bifacial · Glass-Glass',
+    eff:22.0, life:30, LID:1.0, degrad:0.40,
+    e_poly:172, e_ingot:76, e_wafer:46, e_cell:86, e_mod:65, e_mat:74,
+    e_trans:15, e_struct:50, e_elec:44, e_civil:27,
+    e_clean:70, e_scada:34, e_inv:30, e_decom:24,
+    psh:5.0, pr:80, ef:0.72, pef:2.7,
+    badges:[['tag-topcon','TOPCon'],['tag-ncdr','NCDR'],['tag-ntype','N-type']],
+    color:'#B46EFF'
+  },
+  NDCR_TOPCon_630: {
+    name:'NDCR TOPCon 630W', wp:630, tech:'TOPCon', cert:'NDCR',
+    cells:'132 × G12R (210mm)', type:'N-type TOPCon · Hi-Eff · Bifacial · Glass-Glass',
+    eff:22.8, life:30, LID:0.8, degrad:0.38,
+    e_poly:162, e_ingot:80, e_wafer:50, e_cell:92, e_mod:70, e_mat:80,
+    e_trans:20, e_struct:52, e_elec:46, e_civil:28,
+    e_clean:74, e_scada:38, e_inv:34, e_decom:26,
+    psh:5.0, pr:82, ef:0.72, pef:2.7,
+    badges:[['tag-topcon','TOPCon'],['tag-ndcr','NDCR'],['tag-ntype','N-type']],
+    color:'#2EE8A0'
+  }
+};
+
+/* ════════════════════════════════════════════════════
+   PARAMETER DEFINITIONS
+════════════════════════════════════════════════════ */
+const PARAMS = {
+  upstream: [
+    { id:'e_poly', label:'Polysilicon Production', unit:'kWh/kWp', min:80, max:350, step:5,
+      note:'<em>FBR (fluidised bed reactor):</em> <strong>110–160 kWh/kWp</strong> · <em>Siemens CVD (trichlorosilane):</em> <strong>250–320 kWh/kWp</strong> · Most Indian DCR manufacturers use imported Siemens-grade poly · FBR adoption growing in China post-2022' },
+    { id:'e_ingot', label:'Ingot / CZ Pulling', unit:'kWh/kWp', min:30, max:130, step:5,
+      note:'<em>Czochralski (N-type, TOPCon):</em> <strong>60–95 kWh/kWp</strong> at 1414°C pull for 40–60 hr per crystal · <em>Multi-Si casting (P-type, legacy PERC):</em> <strong>30–50 kWh/kWp</strong> · Resistivity spec tighter for N-type → lower yield → higher kWh/kWp' },
+    { id:'e_wafer', label:'Wafer Slicing (DWS)', unit:'kWh/kWp', min:15, max:90, step:5,
+      note:'<em>Diamond Wire Saw (DWS):</em> <strong>30–55 kWh/kWp</strong> · Thinner wafers (130μm vs 180μm) reduce kerf loss by ~30% · G12 (210mm) wafers slightly higher than M10 (182mm) due to area · Dry DWS cuts water usage by ~80%' },
+  ],
+  cell: [
+    { id:'e_cell', label:'Cell Processing', unit:'kWh/kWp', min:30, max:160, step:5,
+      note:'<em>PERC (Diffusion + PECVD AlOx/SiNx, laser etch):</em> <strong>40–70 kWh/kWp</strong> · <em>TOPCon N-type (LPCVD SiO₂ + poly-Si, PECVD SiNx both sides, Ag+Al metallisation):</em> <strong>75–120 kWh/kWp</strong> · LPCVD tube furnace at 600°C adds ~25–35% over PERC cell line' },
+    { id:'e_mod', label:'Module Lamination & Assembly', unit:'kWh/kWp', min:30, max:110, step:5,
+      note:'<em>Glass-backsheet PERC:</em> <strong>40–65 kWh/kWp</strong> · <em>Glass-glass bifacial TOPCon:</em> <strong>60–90 kWh/kWp</strong> (heavier glass, dual lamination) · Autoclave curing +10–15% · Soldering + stringing energy: ~12–18 kWh/kWp within this range' },
+    { id:'e_mat', label:'Frame / Glass / BOM Materials', unit:'kWh/kWp', min:40, max:130, step:5,
+      note:'<em>Al anodised frame:</em> <strong>18–25 kWh/kWp</strong> (Al smelting is energy-intensive) · <em>AR-coated float glass (3.2mm):</em> <strong>20–30 kWh/kWp</strong> · <em>EVA encapsulant:</em> ~10 kWh/kWp · <em>POE (bifacial):</em> ~14 kWh/kWp · <em>J-box + Staubli MC4:</em> ~6–8 kWh/kWp' },
+  ],
+  site: [
+    { id:'psh', label:'Peak Sun Hours (PSH)', unit:'h/day', min:2.5, max:7.0, step:0.1,
+      note:'<em>Rajasthan / Gujarat:</em> <strong>5.5–6.2</strong> · <em>Delhi / MP / UP:</em> <strong>4.8–5.2</strong> · <em>Tamil Nadu coast:</em> <strong>5.4–6.0</strong> · <em>WB / Odisha:</em> <strong>3.8–4.5</strong> · <em>China Xinjiang:</em> <strong>5.5–6.5</strong> · <em>China avg:</em> <strong>4.5–5.2</strong> · <em>Germany:</em> <strong>2.5–3.2</strong> · <em>Spain/Italy:</em> <strong>4.5–5.5</strong>' },
+    { id:'pr', label:'Performance Ratio', unit:'%', min:65, max:92, step:1,
+      note:'<em>Utility ground-mount SAT/tracker (India):</em> <strong>82–87%</strong> · <em>Fixed-tilt utility (India):</em> <strong>78–83%</strong> · <em>Residential rooftop (India):</em> <strong>72–80%</strong> · High dust/soiling in Rajasthan can reduce PR by <strong>5–8%</strong> between cleaning cycles · Bifacial gain adds <strong>3–8%</strong> effective PR' },
+    { id:'ef', label:'Grid Emission Factor', unit:'kgCO₂/kWh', min:0.35, max:1.00, step:0.01,
+      note:'<em>India (CEA 2023):</em> <strong>0.71–0.74</strong> · <em>China grid (2023):</em> <strong>0.55–0.62</strong> · <em>Germany (2023):</em> <strong>0.38–0.45</strong> · <em>USA avg:</em> <strong>0.38–0.48</strong> · <em>Spain:</em> <strong>0.22–0.30</strong> · Used to compute CO₂ avoidance and GHG intensity of manufacturing energy' },
+    { id:'pef', label:'Primary Energy Factor', unit:'×', min:1.5, max:4.0, step:0.1,
+      note:'<em>India (coal-heavy, ~70% thermal):</em> <strong>2.5–3.0</strong> · <em>China grid:</em> <strong>2.3–2.8</strong> · <em>EU average:</em> <strong>1.8–2.5</strong> · <em>US grid:</em> <strong>2.0–2.6</strong> · Converts electrical energy at point-of-use to upstream primary fuel energy — captures grid generation losses' },
+  ],
+  bos: [
+    { id:'e_trans', label:'Road Transport (Factory → Site)', unit:'kWh/kWp', min:3, max:55, step:1,
+      note:'<em>India domestic (DCR, avg 800 km truck):</em> <strong>7–14 kWh/kWp</strong> · <em>China sea freight + port + inland to India site:</em> <strong>18–32 kWh/kWp</strong> · Rail: ~40% lower than road per tonne-km · Sea shipping: ~0.015 kWh/kWp per 1000 km · Includes packaging return logistics' },
+    { id:'e_struct', label:'Mounting Structure (Racking)', unit:'kWh/kWp', min:20, max:110, step:5,
+      note:'<em>GI (galvanised iron, ground-mount):</em> <strong>30–55 kWh/kWp</strong> — preferred in India for embodied energy · <em>Aluminium racking:</em> <strong>55–85 kWh/kWp</strong> (Al smelting intensive) · <em>SAT (single-axis tracker):</em> add <strong>15–28 kWh/kWp</strong> · <em>Floatovoltaic:</em> add <strong>20–45 kWh/kWp</strong> (HDPE floats)' },
+    { id:'e_elec', label:'Inverter + Cables + Transformer', unit:'kWh/kWp', min:15, max:85, step:5,
+      note:'<em>String inverter (utility):</em> <strong>22–38 kWh/kWp</strong> · <em>Central inverter (MW-scale):</em> <strong>15–25 kWh/kWp</strong> — more efficient per kWp · <em>DC cable (PV + combiner):</em> <strong>8–14 kWh/kWp</strong> · <em>AC cable + MV transformer:</em> <strong>8–16 kWh/kWp</strong> · BESS integration adds ~20–40 kWh/kWp' },
+    { id:'e_civil', label:'Civil Works (Piling, Roads)', unit:'kWh/kWp', min:10, max:75, step:5,
+      note:'<em>Driven pile (hard laterite/black cotton soil):</em> <strong>25–45 kWh/kWp</strong> · <em>Screw pile (sandy/loose soil):</em> <strong>15–28 kWh/kWp</strong> · <em>Concrete ballast (flat roof):</em> <strong>35–60 kWh/kWp</strong> · <em>Access roads + internal drainage:</em> <strong>5–14 kWh/kWp</strong> · Earthing and lightning protection: ~3–6 kWh/kWp' },
+  ],
+  oam: [
+    { id:'e_clean', label:'Module Cleaning — Lifetime Total', unit:'kWh/kWp', min:20, max:140, step:5,
+      note:'<em>Wet cleaning pump + DM water (India avg, 2×/month):</em> <strong>3–5 kWh/kWp/yr</strong> → <strong>75–150 kWh/kWp</strong> over 30 yr · <em>Dry robotic cleaning:</em> <strong>1.5–2.5 kWh/kWp/yr</strong> · Rajasthan PM₁₀ dust high — <strong>2× more</strong> cleaning needed · Trackers tilt self-clean, reducing frequency ~15%' },
+    { id:'e_scada', label:'Monitoring / SCADA — Lifetime', unit:'kWh/kWp', min:10, max:65, step:5,
+      note:'<em>SCADA servers + RTUs + comms (lifetime):</em> <strong>18–40 kWh/kWp</strong> · <em>Met stations (pyranometers, anemometers):</em> <strong>5–10 kWh/kWp</strong> · <em>Drone IR inspection (bi-annual):</em> <strong>2–5 kWh/kWp</strong> · <em>EL imaging (commissioning + O&M):</em> ~2 kWh/kWp · SCADA data centre load dominant' },
+    { id:'e_inv', label:'Inverter Mid-Life Replacement', unit:'kWh/kWp', min:10, max:55, step:5,
+      note:'<em>String inverter design life:</em> <strong>10–15 yr</strong> → one replacement over 30 yr · <em>Central inverter:</em> <strong>15–20 yr</strong> → may need one replacement · Embodied energy of replacement: <strong>15–35 kWh/kWp</strong> (same as BOS install) · Refurbished unit reduces this by <strong>30–50%</strong>' },
+    { id:'e_decom', label:'Decommissioning + Recycling', unit:'kWh/kWp', min:10, max:65, step:5,
+      note:'<em>Module disassembly + frame/glass separation:</em> <strong>8–16 kWh/kWp</strong> · <em>Si cell recovery (thermal pyrolysis):</em> <strong>12–22 kWh/kWp</strong> · <em>India EoL infrastructure:</em> nascent — informal recycling common; formal policy TBD under MNRE · <em>EU WEEE reference:</em> <strong>20–35 kWh/kWp</strong> · Al/glass recycle credit offsets ~10–15%' },
+  ]
+};
+
+/* ════════════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════════════ */
+let selMod = 'NDCR_TOPCon_625';
+let V = {}; // all slider values
+let activeTab = 0;
+let donutChartObj = null;
+let cumulChartObj = null;
+
+/* ════════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════════ */
+function init() {
+  buildModSelector();
+  buildAllParams();
+  pickMod('NDCR_TOPCon_625');
+}
+
+function buildModSelector() {
+  document.getElementById('modSelector').innerHTML = Object.entries(MODS).map(([k,m]) => `
+    <div class="mod-card${k===selMod?' sel':''}" id="mc-${k}" onclick="pickMod('${k}')">
+      <div class="mc-inner">
+        <div class="mc-wp">${m.wp}<span> Wp</span></div>
+        <div class="mc-name">${m.name}</div>
+        <div class="mc-badges">${m.badges.map(([cls,lbl])=>`<span class="tag ${cls}">${lbl}</span>`).join('')}</div>
+      </div>
+    </div>`).join('');
+}
+
+function buildAllParams() {
+  Object.entries(PARAMS).forEach(([grp, plist]) => {
+    const el = document.getElementById(`grp-${grp}`);
+    if (!el) return;
+    el.innerHTML = plist.map(p => `
+      <div class="pg">
+        <div class="pg-top">
+          <span class="pg-name">${p.label}</span>
+          <span class="pg-val" id="pv-${p.id}">—</span>
+        </div>
+        <input type="range" id="sl-${p.id}" min="${p.min}" max="${p.max}" step="${p.step}"
+          oninput="onSlider('${p.id}','${p.unit}')">
+        <div class="pg-note">${p.note}</div>
+      </div>`).join('');
+  });
+}
+
+function pickMod(k) {
+  selMod = k;
+  const m = MODS[k];
+  Object.keys(MODS).forEach(key => document.getElementById('mc-'+key)?.classList.toggle('sel', key===k));
+
+  // Load preset values into V and sliders
+  const keys = ['e_poly','e_ingot','e_wafer','e_cell','e_mod','e_mat',
+    'e_trans','e_struct','e_elec','e_civil','e_clean','e_scada','e_inv','e_decom',
+    'psh','pr','ef','pef'];
+  keys.forEach(id => {
+    if (m[id] !== undefined) {
+      V[id] = m[id];
+      const sl = document.getElementById('sl-'+id);
+      if (sl) sl.value = m[id];
+      setValDisplay(id, m[id]);
+    }
+  });
+
+  updateStrip();
+  recalc();
+}
+
+function onSlider(id, unit) {
+  const v = +document.getElementById('sl-'+id).value;
+  V[id] = v;
+  setValDisplay(id, v);
+  recalc();
+}
+
+function setValDisplay(id, v) {
+  const el = document.getElementById('pv-'+id);
+  if (!el) return;
+  const allP = [...PARAMS.upstream,...PARAMS.cell,...PARAMS.site,...PARAMS.bos,...PARAMS.oam];
+  const p = allP.find(x=>x.id===id);
+  if (!p) return;
+  const n = +v;
+  let txt;
+  if (p.unit==='%') txt = n.toFixed(0)+' %';
+  else if (p.unit==='kgCO₂/kWh') txt = n.toFixed(2)+' kgCO₂/kWh';
+  else if (p.unit==='×') txt = n.toFixed(1)+'×';
+  else if (p.unit==='h/day') txt = n.toFixed(1)+' h/day';
+  else txt = n.toFixed(0)+' kWh/kWp';
+  el.textContent = txt;
+}
+
+function updateStrip() {
+  const m = MODS[selMod];
+  document.getElementById('modStrip').innerHTML = [
+    [m.wp+'<span style="font-size:12px;font-weight:400;color:var(--t3)"> Wp</span>', 'Rated Power'],
+    [m.eff+'%', 'Module Efficiency'],
+    [m.cells, 'Cell Configuration'],
+    [m.life+' yr', 'Design Lifetime'],
+    [m.LID+'%', 'Y1 LID Loss'],
+    [m.degrad+'%/yr', 'Annual Degradation'],
+    [m.cert, 'Category'],
+  ].map(([val,lbl]) => `
+    <div class="strip-item">
+      <div class="si-val">${val}</div>
+      <div class="si-label">${lbl}</div>
+    </div>`).join('');
+}
+
+/* ════════════════════════════════════════════════════
+   LCA CALCULATIONS
+════════════════════════════════════════════════════ */
+function einput() {
+  const Emfg = (V.e_poly||0)+(V.e_ingot||0)+(V.e_wafer||0)+(V.e_cell||0)+(V.e_mod||0)+(V.e_mat||0);
+  const Etrans = V.e_trans||0;
+  const Ebos = (V.e_struct||0)+(V.e_elec||0)+(V.e_civil||0);
+  const Eop = (V.e_clean||0)+(V.e_scada||0)+(V.e_inv||0);
+  const Edecom = V.e_decom||0;
+  return { Emfg, Etrans, Ebos, Eop, Edecom, Etotal:Emfg+Etrans+Ebos+Eop+Edecom };
+}
+
+function yearOut(yr) {
+  const m = MODS[selMod];
+  const Erated = (V.psh||5) * 365 * ((V.pr||80)/100);
+  if (yr<=0) return 0;
+  const Y1 = Erated * (1 - m.LID/100);
+  if (yr===1) return Y1;
+  return Y1 * Math.pow(1 - m.degrad/100, yr-1);
+}
+
+function calcLCA() {
+  const { Emfg, Etrans, Ebos, Eop, Edecom, Etotal } = einput();
+  const m = MODS[selMod];
+  const Erated = (V.psh||5) * 365 * ((V.pr||80)/100);
+  const ef = V.ef||0.72, pef = V.pef||2.7;
+  const L = m.life;
+
+  // Cumulative output per year
+  const cumOut = [0];
+  let Elife = 0;
+  for (let y=1;y<=L;y++) { const yo=yearOut(y); Elife+=yo; cumOut.push(cumOut[y-1]+yo); }
+
+  // EPT (IEA PVPS: use rated, not Y1 with LID)
+  const EPT = Etotal / Erated;
+  const EYR = Elife / Etotal;
+  const CO2 = Elife * ef / 1000;
+  const GEF = (Etotal * pef * ef * 1000) / Elife;
+
+  // Actual crossover from cumOut array
+  let crossYr = EPT;
+  for (let y=0;y<cumOut.length-1;y++) {
+    if (cumOut[y]<=Etotal && cumOut[y+1]>=Etotal) {
+      crossYr = y + (Etotal-cumOut[y])/(cumOut[y+1]-cumOut[y]);
+      break;
+    }
+  }
+
+  return { Emfg,Etrans,Ebos,Eop,Edecom,Etotal, Erated,Elife, EPT,EYR,CO2,GEF, cumOut,crossYr, L, ef, pef };
+}
+
+/* ════════════════════════════════════════════════════
+   TAB SWITCH
+════════════════════════════════════════════════════ */
+function switchTab(i) {
+  activeTab = i;
+  [0,1,2].forEach(x => {
+    document.getElementById('tab-'+x).style.display = x===i?'block':'none';
+    document.querySelectorAll('.tab-btn')[x].classList.toggle('on', x===i);
+  });
+  const lca = calcLCA();
+  if (i===1) renderBreakdown(lca);
+  if (i===2) renderResults(lca);
+}
+
+function recalc() {
+  const lca = calcLCA();
+  if (activeTab===1) renderBreakdown(lca);
+  if (activeTab===2) renderResults(lca);
+}
+
+/* ════════════════════════════════════════════════════
+   BREAKDOWN ITEMS (for waterfall + table)
+════════════════════════════════════════════════════ */
+const BKITEMS = [
+  {cat:'Manufacturing',key:'e_poly', label:'Polysilicon production',  color:'#3B7FFF',catColor:'#3B7FFF'},
+  {cat:'Manufacturing',key:'e_ingot',label:'Ingot / CZ pulling',      color:'#5B9FFF',catColor:'#3B7FFF'},
+  {cat:'Manufacturing',key:'e_wafer',label:'Wafer slicing (DWS)',      color:'#8BBFFF',catColor:'#3B7FFF'},
+  {cat:'Manufacturing',key:'e_cell', label:'Cell processing',          color:'#B46EFF',catColor:'#B46EFF'},
+  {cat:'Manufacturing',key:'e_mod',  label:'Module lamination',        color:'#CF9EFF',catColor:'#B46EFF'},
+  {cat:'Manufacturing',key:'e_mat',  label:'Frame / Glass / BOM',      color:'#E2BFFF',catColor:'#B46EFF'},
+  {cat:'Transport',    key:'e_trans',label:'Road / sea transport',     color:'#2EE8A0',catColor:'#2EE8A0'},
+  {cat:'Installation', key:'e_struct',label:'Mounting structure',      color:'#F5E642',catColor:'#F5E642'},
+  {cat:'Installation', key:'e_elec', label:'Inverter + cables + Tx',   color:'#FFD080',catColor:'#F5E642'},
+  {cat:'Installation', key:'e_civil',label:'Civil works',              color:'#FFE8A0',catColor:'#F5E642'},
+  {cat:'O&M',          key:'e_clean',label:'Module cleaning (lifetime)',color:'#FF5757',catColor:'#FF5757'},
+  {cat:'O&M',          key:'e_scada',label:'Monitoring / SCADA',       color:'#FF8080',catColor:'#FF5757'},
+  {cat:'O&M',          key:'e_inv',  label:'Inverter replacement',     color:'#FFAAAA',catColor:'#FF5757'},
+  {cat:'Decommission', key:'e_decom',label:'Dismantling + recycling',  color:'#FFAA33',catColor:'#FFAA33'},
+];
+const BKNOTES = {
+  e_poly:'Largest single contributor; FBR poly reduces by ~40% vs Siemens CVD',
+  e_ingot:'N-type CZ: tighter resistivity spec → lower yield → higher energy per Wp',
+  e_wafer:'DWS kerf loss ~100μm; thinner wafers reduce energy & material use',
+  e_cell:'LPCVD tunnel SiO₂ + poly-Si deposition adds ~25–35% over PERC cell line',
+  e_mod:'Glass-glass bifacial adds ~25–30% lamination energy vs glass-backsheet',
+  e_mat:'Al frame smelting most energy-intensive BOM; POE slightly > EVA',
+  e_trans:'India-domestic DCR saves ~15–20 kWh/kWp vs China NDCR sea freight',
+  e_struct:'GI preferred over Al in India; SAT/trackers add ~20 kWh/kWp',
+  e_elec:'Central inverter (MW-scale) more efficient per kWp than string inverters',
+  e_civil:'Varies strongly with soil type; hard laterite highest; sandy lowest',
+  e_clean:'India dust critical — arid zones need 2× frequency; tracker tilt helps self-clean',
+  e_scada:'SCADA data centre + edge computing + met station power over 25–30 yr',
+  e_inv:'Mid-life replacement yr 12–15 (string) or yr 18–22 (central); plan CAPEX',
+  e_decom:'India EoL evolving: glass ~90% recovery, Si ~75% thermal; Al easy to recycle',
+};
+
+/* ════════════════════════════════════════════════════
+   RENDER: BREAKDOWN
+════════════════════════════════════════════════════ */
+const PHASES = [
+  {label:'Manufacturing',key:'Emfg', color:'#3B7FFF'},
+  {label:'Transport',    key:'Etrans',color:'#2EE8A0'},
+  {label:'Installation', key:'Ebos', color:'#F5E642'},
+  {label:'O&M (lifetime)',key:'Eop', color:'#FF5757'},
+  {label:'Decommission', key:'Edecom',color:'#FFAA33'},
+];
+
+function renderBreakdown(lca) {
+  const { Etotal } = lca;
+
+  // Waterfall
+  let prevCat='', wfHTML='';
+  BKITEMS.forEach(it => {
+    const v = V[it.key]||0, pct=(v/Etotal*100).toFixed(1), w=(v/Etotal*100).toFixed(2);
+    if (it.cat!==prevCat) {
+      wfHTML+=`<div class="wf-cat-label" style="color:${it.catColor}">${it.cat}</div>`;
+      prevCat=it.cat;
+    }
+    wfHTML+=`<div class="wf-row">
+      <div class="wf-lbl">${it.label}</div>
+      <div class="wf-track"><div class="wf-fill" style="width:${w}%;background:${it.color}">${v>18?it.cat:''}</div></div>
+      <div class="wf-kwhval">${v} kWh/kWp</div>
+      <div class="wf-pctval">${pct}%</div>
+    </div>`;
+  });
+  document.getElementById('wfChart').innerHTML = wfHTML;
+
+  // Donut
+  if (donutChartObj) { donutChartObj.destroy(); donutChartObj=null; }
+  const dc = document.getElementById('donutChart')?.getContext('2d');
+  if (dc) {
+    donutChartObj = new Chart(dc,{
+      type:'doughnut',
+      data:{
+        labels: PHASES.map(p=>p.label),
+        datasets:[{
+          data: PHASES.map(p=>lca[p.key]),
+          backgroundColor: PHASES.map(p=>p.color),
+          borderWidth:2, borderColor:'#0D0D1C', hoverOffset:6
+        }]
+      },
+      options:{
+        cutout:'65%',
+        plugins:{
+          legend:{display:false},
+          tooltip:{callbacks:{label:c=>` ${c.label}: ${c.parsed} kWh/kWp (${(c.parsed/Etotal*100).toFixed(1)}%)`}}
+        }
+      }
+    });
+  }
+
+  // Phase legend
+  document.getElementById('phaseLegend').innerHTML =
+    PHASES.map(p=>`
+      <div class="pl-row">
+        <div class="pl-dot" style="background:${p.color}"></div>
+        <div class="pl-name">${p.label}</div>
+        <div class="pl-kwh">${lca[p.key]} kWh/kWp</div>
+        <div class="pl-pct">${(lca[p.key]/Etotal*100).toFixed(1)}%</div>
+      </div>`).join('') +
+    `<div class="pl-total">
+      <div style="width:10px;height:10px;flex-shrink:0"></div>
+      <div class="pl-name" style="font-weight:700;color:var(--solar)">Total E<sub>input</sub></div>
+      <div class="pl-kwh" style="color:var(--solar);font-weight:700">${Etotal.toFixed(0)} kWh/kWp</div>
+    </div>`;
+
+  // Table
+  const wp = MODS[selMod].wp;
+  document.getElementById('dtable').innerHTML =
+    `<tr><th>Phase</th><th>Line Item</th><th style="text-align:right">kWh/kWp</th><th style="text-align:right">% Total</th><th style="text-align:right">kWh/Module (${wp}Wp)</th><th>Industry Note</th></tr>` +
+    BKITEMS.map(it=>{
+      const v=V[it.key]||0;
+      return `<tr>
+        <td><span style="font-size:9.5px;font-weight:700;font-family:var(--head);padding:2px 8px;border-radius:20px;background:${it.catColor}22;color:${it.catColor};border:1px solid ${it.catColor}44">${it.cat}</span></td>
+        <td style="color:var(--t1);font-weight:500">${it.label}</td>
+        <td class="r">${v}</td>
+        <td class="r">${(v/Etotal*100).toFixed(1)}%</td>
+        <td class="r">${(v*wp/1000).toFixed(1)} kWh</td>
+        <td style="font-size:10.5px;color:var(--t3)">${BKNOTES[it.key]}</td>
+      </tr>`;
+    }).join('') +
+    `<tr class="total-row">
+      <td colspan="2" style="font-family:var(--head);letter-spacing:.5px">TOTAL E<sub>input</sub></td>
+      <td class="r">${Etotal.toFixed(0)}</td>
+      <td class="r">100%</td>
+      <td class="r">${(Etotal*wp/1000).toFixed(0)} kWh</td>
+      <td></td>
+    </tr>`;
+}
+
+/* ════════════════════════════════════════════════════
+   RENDER: RESULTS
+════════════════════════════════════════════════════ */
+function renderResults(lca) {
+  const m = MODS[selMod];
+
+  // KPIs
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi kpi-ept">
+      <div class="kpi-num">${lca.EPT.toFixed(2)}</div>
+      <div class="kpi-lbl">Energy Payback Time</div>
+      <div class="kpi-unit">years · ${(lca.EPT*12).toFixed(0)} months</div>
+    </div>
+    <div class="kpi kpi-eyr">
+      <div class="kpi-num">${lca.EYR.toFixed(1)}×</div>
+      <div class="kpi-lbl">Energy Yield Ratio</div>
+      <div class="kpi-unit">lifetime output ÷ total input</div>
+    </div>
+    <div class="kpi kpi-co2">
+      <div class="kpi-num">${lca.CO2.toFixed(1)}</div>
+      <div class="kpi-lbl">CO₂ Avoided</div>
+      <div class="kpi-unit">tonne CO₂eq per kWp</div>
+    </div>
+    <div class="kpi kpi-gef">
+      <div class="kpi-num">${lca.GEF.toFixed(0)}</div>
+      <div class="kpi-lbl">GHG Emission Factor</div>
+      <div class="kpi-unit">gCO₂eq / kWh electrical</div>
+    </div>`;
+
+  // Formulae
+  const PSH = (V.psh||5).toFixed(1);
+  const PR = ((V.pr||80)/100).toFixed(2);
+  const Er = lca.Erated.toFixed(0);
+  const EY1 = (lca.Erated*(1-m.LID/100)).toFixed(0);
+  const EYn_ex = (lca.Erated*(1-m.LID/100)*Math.pow(1-m.degrad/100,4)).toFixed(0);
+  document.getElementById('formulaBox').innerHTML = `
+    <div class="f-section-title">⚡ Annual Output Model</div>
+    <div class="f-row" style="border-left-color:var(--green)">
+      <div class="f-lhs" style="color:var(--green)">E<sub>ann,rated</sub></div>
+      <div class="f-eq">=</div>
+      <div class="f-rhs">PSH × 365 × PR = ${PSH} × 365 × ${PR}</div>
+      <div class="f-result" style="color:var(--green)">${Er} kWh/kWp·yr</div>
+    </div>
+    <div class="f-row" style="border-left-color:var(--green)">
+      <div class="f-lhs" style="color:var(--green)">E<sub>Y1</sub></div>
+      <div class="f-eq">=</div>
+      <div class="f-rhs">E<sub>rated</sub> × (1 − LID%) = ${Er} × (1 − ${m.LID}%)</div>
+      <div class="f-result" style="color:var(--green)">${EY1} kWh/kWp</div>
+    </div>
+    <div class="f-row" style="border-left-color:var(--green)">
+      <div class="f-lhs" style="color:var(--green)">E<sub>Yn</sub></div>
+      <div class="f-eq">=</div>
+      <div class="f-rhs">E<sub>Y1</sub> × (1 − δ)<sup>n−1</sup>, δ = ${m.degrad}%/yr &nbsp;[e.g. Y5 = ${EYn_ex}]</div>
+      <div class="f-result" style="color:var(--t3)">cumulative</div>
+    </div>
+
+    <div class="f-section-title" style="margin-top:14px">🔋 Lifetime & E<sub>input</sub></div>
+    <div class="f-row" style="border-left-color:var(--purple)">
+      <div class="f-lhs" style="color:var(--purple)">E<sub>lifetime</sub></div>
+      <div class="f-eq">=</div>
+      <div class="f-rhs">Σ E<sub>Yn</sub> for n = 1 → ${m.life} yr (LID + geometric degradation)</div>
+      <div class="f-result" style="color:var(--purple)">${lca.Elife.toFixed(0)} kWh/kWp</div>
+    </div>
+    <div class="f-row" style="border-left-color:var(--purple)">
+      <div class="f-lhs" style="color:var(--purple)">E<sub>input</sub></div>
+      <div class="f-eq">=</div>
+      <div class="f-rhs">E<sub>mfg</sub> + E<sub>trans</sub> + E<sub>BOS</sub> + E<sub>O&M</sub> + E<sub>decom</sub></div>
+      <div class="f-result" style="color:var(--purple)">${lca.Etotal.toFixed(0)} kWh/kWp</div>
+    </div>
+
+    <div class="f-section-title" style="margin-top:14px">📊 EPT · EYR · GEF</div>
+    <div class="f-row" style="border-left-color:var(--green)">
+      <div class="f-lhs" style="color:var(--green)">EPT</div>
+      <div class="f-eq">=</div>
+      <div class="f-rhs">E<sub>input</sub> ÷ E<sub>ann,rated</sub> = ${lca.Etotal.toFixed(0)} ÷ ${Er}</div>
+      <div class="f-result" style="color:var(--green)">${lca.EPT.toFixed(2)} yr</div>
+    </div>
+    <div class="f-row" style="border-left-color:var(--purple)">
+      <div class="f-lhs" style="color:var(--purple)">EYR</div>
+      <div class="f-eq">=</div>
+      <div class="f-rhs">E<sub>lifetime</sub> ÷ E<sub>input</sub> = ${lca.Elife.toFixed(0)} ÷ ${lca.Etotal.toFixed(0)}</div>
+      <div class="f-result" style="color:var(--purple)">${lca.EYR.toFixed(2)}</div>
+    </div>
+    <div class="f-row" style="border-left-color:var(--blue)">
+      <div class="f-lhs" style="color:var(--blue)">GEF</div>
+      <div class="f-eq">=</div>
+      <div class="f-rhs">(E<sub>input</sub> × PEF × EF × 1000) ÷ E<sub>lifetime</sub></div>
+      <div class="f-result" style="color:var(--blue)">${lca.GEF.toFixed(1)} gCO₂/kWh</div>
+    </div>
+    <div class="f-note">
+      📖 EPT method per <strong>IEA PVPS Task 12 (2020)</strong> · EYR = L / EPT where L = design life ·
+      LID + degradation model per <strong>IEC 61215, NREL PVWatts v8</strong> · GEF per ISO 14044 LCA boundary
+    </div>`;
+
+  // Benchmark
+  const eptColor = v => v < 0.8 ? '#2EE8A0' : v < 1.2 ? '#F5E642' : v < 2.0 ? '#FFAA33' : '#FF5757';
+  const benchRows = [
+    {tech:'TOPCon N-type', mfg:'China',       loc:'India — Rajasthan (5.8 PSH)', ept:0.60, eyr:41, gef:20},
+    {tech:'TOPCon N-type', mfg:'China',       loc:'India — avg (5.0 PSH)',       ept:0.75, eyr:33, gef:27},
+    {tech:'TOPCon N-type', mfg:'China',       loc:'China — Xinjiang (6.0 PSH)',  ept:0.72, eyr:34, gef:30},
+    {tech:'TOPCon N-type', mfg:'China',       loc:'China — avg (4.8 PSH)',       ept:0.92, eyr:27, gef:34},
+    {tech:'TOPCon N-type', mfg:'China',       loc:'Germany (2.8 PSH)',            ept:1.90, eyr:13, gef:54},
+    {tech:'PERC Mono-Si',  mfg:'India (DCR)', loc:'India — avg (5.0 PSH)',       ept:0.88, eyr:26, gef:34},
+    {tech:'PERC Mono-Si',  mfg:'China',       loc:'India — avg (5.0 PSH)',       ept:0.95, eyr:24, gef:38},
+    {tech:'HJT (a-Si/c-Si)',mfg:'China',      loc:'India — avg (5.0 PSH)',       ept:0.80, eyr:33, gef:25},
+    {tech:'CdTe thin-film', mfg:'USA',        loc:'India — avg (5.0 PSH)',       ept:0.52, eyr:42, gef:15},
+    {tech:'a-Si thin-film', mfg:'Global',     loc:'India — avg (5.0 PSH)',       ept:1.50, eyr:15, gef:60},
+    {tech:'Coal grid',      mfg:'—',          loc:'India',                       ept:null, eyr:null,gef:720},
+  ];
+  document.getElementById('benchTable').innerHTML =
+    `<tr><th>Technology</th><th>Mfg Origin</th><th>Installation Location</th><th style="text-align:right">EPT (yr)</th><th style="text-align:right">EYR</th><th style="text-align:right">GEF (gCO₂/kWh)</th></tr>
+    <tr class="hl">
+      <td style="font-family:var(--head);font-size:11px">${m.name}</td>
+      <td>India</td>
+      <td>India — ${(V.psh||5).toFixed(1)} PSH</td>
+      <td class="r">${lca.EPT.toFixed(2)}</td>
+      <td class="r">${lca.EYR.toFixed(1)}</td>
+      <td class="r">${lca.GEF.toFixed(0)}</td>
+    </tr>` +
+    benchRows.map(r=>`<tr>
+      <td style="font-size:12px">${r.tech}</td>
+      <td style="font-size:10.5px;color:var(--t3)">${r.mfg}</td>
+      <td style="font-size:10.5px;color:var(--t3)">${r.loc}</td>
+      <td class="r">${r.ept!=null?'<span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10.5px;font-weight:700;background:'+eptColor(r.ept)+'22;color:'+eptColor(r.ept)+'">'+r.ept.toFixed(2)+'</span>':'—'}</td>
+      <td class="r">${r.eyr!=null?r.eyr:'—'}</td>
+      <td class="r" style="${r.gef>100?'color:var(--red)':''}">${r.gef}</td>
+    </tr>`).join('') +
+    `<tr><td colspan="6" class="bench-note">
+      Sources: IEA PVPS Task 12 (2020) · Frischknecht et al. (2021) · NREL LCA Harmonisation Study (2012 upd.) ·
+      Gong et al. (2022) TOPCon LCA · Müller et al. (2023) N-type LCA · China grid factor: NEA 2023
+    </td></tr>`;
+
+  drawCumulChart(lca);
+}
+
+/* ════════════════════════════════════════════════════
+   CUMULATIVE ENERGY BALANCE CHART
+════════════════════════════════════════════════════ */
+function drawCumulChart(lca) {
+  const m = MODS[selMod];
+  const { cumOut, Etotal, crossYr, L } = lca;
+  const years = Array.from({length:L+1},(_,i)=>i);
+
+  // Annual output array
+  const annOut = years.map(y => y===0 ? 0 : cumOut[y]-cumOut[y-1]);
+
+  if (cumulChartObj) { cumulChartObj.destroy(); cumulChartObj=null; }
+  const ctx = document.getElementById('cumulChart')?.getContext('2d');
+  if (!ctx) return;
+
+  const crossInt = Math.ceil(crossYr);
+  const barColors = years.map(y =>
+    y===0 ? 'transparent' :
+    y <= crossInt ? 'rgba(255,87,87,0.55)' : 'rgba(46,232,160,0.55)'
+  );
+  const barBorders = years.map(y =>
+    y===0 ? 'transparent' :
+    y <= crossInt ? '#FF5757' : '#2EE8A0'
+  );
+
+  cumulChartObj = new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels: years.map(y=>`Y${y}`),
+      datasets:[
+        {
+          label:'Annual Output (kWh/kWp)',
+          data: annOut, type:'bar',
+          backgroundColor: barColors, borderColor: barBorders,
+          borderWidth:1.5, yAxisID:'yBar', order:3,
+        },
+        {
+          label:'Cumulative Energy Output (kWh/kWp)',
+          data: cumOut, type:'line',
+          borderColor:'#2EE8A0', backgroundColor:'rgba(46,232,160,0.06)',
+          borderWidth:2.5, fill:true, tension:0.35,
+          pointRadius:0, pointHitRadius:12, yAxisID:'y', order:1,
+        },
+        {
+          label:`Total E_input = ${Etotal.toFixed(0)} kWh/kWp`,
+          data: Array(L+1).fill(Etotal), type:'line',
+          borderColor:'rgba(255,87,87,0.8)', backgroundColor:'transparent',
+          borderWidth:2, borderDash:[9,5],
+          pointRadius:0, yAxisID:'y', order:2,
+        },
+      ]
+    },
+    options:{
+      responsive:true,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{
+          position:'top',
+          labels:{color:'#8080A0',font:{size:11,family:'DM Sans'},boxWidth:22,padding:18}
+        },
+        tooltip:{
+          backgroundColor:'rgba(13,13,28,0.95)',
+          borderColor:'rgba(245,230,66,0.2)',borderWidth:1,
+          padding:10,titleColor:'#F5E642',bodyColor:'#8080A0',
+          callbacks:{
+            title: items=>`Year ${items[0].label}`,
+            label: c=>{
+              if (c.datasetIndex===0) return ` Annual output: ${c.parsed.y.toFixed(0)} kWh/kWp`;
+              if (c.datasetIndex===1) {
+                const diff = c.parsed.y - Etotal;
+                const suffix = diff>=0 ? ` (+${diff.toFixed(0)} net surplus)` : ` (${diff.toFixed(0)} still to repay)`;
+                return ` Cumulative: ${c.parsed.y.toFixed(0)} kWh/kWp${suffix}`;
+              }
+              return ` E_input threshold: ${c.parsed.y.toFixed(0)} kWh/kWp`;
+            }
+          }
+        },
+        annotation:{
+          annotations:{
+            eptLine:{
+              type:'line', scaleID:'x',
+              value: crossYr,
+              borderColor:'#F5E642', borderWidth:2.5, borderDash:[7,4],
+              label:{
+                display:true,
+                content:`⚡ EPT ≈ ${crossYr.toFixed(1)} yr`,
+                backgroundColor:'rgba(245,230,66,0.9)',
+                color:'#000', font:{size:11.5,weight:'bold',family:'Oxanium'},
+                padding:{x:10,y:5}, position:'start', yAdjust:-14,
+              }
+            },
+            preBand:{
+              type:'box', xMin:0, xMax:crossYr,
+              backgroundColor:'rgba(255,87,87,0.04)', borderWidth:0,
+              label:{display:true,content:'Energy Debt Zone',color:'rgba(255,87,87,0.3)',
+                font:{size:10,style:'italic'},position:{x:'center',y:'end'},yAdjust:14}
+            },
+            postBand:{
+              type:'box', xMin:crossYr, xMax:L,
+              backgroundColor:'rgba(46,232,160,0.04)', borderWidth:0,
+              label:{display:true,content:'Net Clean Energy Generation',color:'rgba(46,232,160,0.35)',
+                font:{size:10,style:'italic'},position:{x:'center',y:'end'},yAdjust:14}
+            }
+          }
+        }
+      },
+      scales:{
+        x:{
+          ticks:{color:'#505060',font:{size:10},maxTicksLimit:16},
+          grid:{color:'rgba(255,255,255,0.04)'},
+          title:{display:true,text:'Year',color:'#505060',font:{size:11}}
+        },
+        y:{
+          type:'linear',position:'left',
+          ticks:{color:'#505060',font:{size:10},callback:v=>`${(v/1000).toFixed(0)}k`},
+          grid:{color:'rgba(255,255,255,0.04)'},
+          title:{display:true,text:'Cumulative Energy (kWh/kWp)',color:'#505060',font:{size:11}}
+        },
+        yBar:{
+          type:'linear',position:'right',
+          ticks:{color:'#404060',font:{size:9.5}},
+          grid:{display:false},
+          title:{display:true,text:'Annual Output (kWh/kWp)',color:'#404060',font:{size:10.5}},
+          max: Math.max(...annOut.filter(Boolean)) * 3.5,
+        }
+      }
+    }
+  });
+
+  // EPT annotation box
+  const pct = ((1 - crossYr/L)*100).toFixed(0);
+  document.getElementById('eptBox').innerHTML = `
+    <div class="ept-box-icon">⚡</div>
+    <div class="ept-box-text">
+      Your <em>${m.name}</em> reaches energy break-even at <strong>Year ${crossYr.toFixed(1)} (${(crossYr*12).toFixed(0)} months)</strong>.
+      Bars in <span style="color:var(--red);font-weight:600">red</span> = module is still "repaying" its embodied energy debt;
+      bars in <span style="color:var(--green);font-weight:600">green</span> = net clean energy generation.
+      After EPT, the module generates clean surplus energy for <strong>${(L-crossYr).toFixed(1)} more years</strong> —
+      that's <strong>${pct}% of its ${L}-year life</strong> in net-positive territory,
+      avoiding <strong>${lca.CO2.toFixed(1)} tCO₂eq/kWp</strong> vs India coal grid.
+    </div>`;
+}
+
+/* ════════════════════════════════════════════════════
+   BOOT
+════════════════════════════════════════════════════ */
+window.addEventListener('DOMContentLoaded', () => {
+  if (window.Chart && window['chartjs-plugin-annotation']) {
+    Chart.register(window['chartjs-plugin-annotation']);
+  }
+  init();
+});
+</script>
+</body>
+</html>
